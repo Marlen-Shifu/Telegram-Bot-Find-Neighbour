@@ -55,6 +55,32 @@ btn_3 = types.KeyboardButton('Фильтр')
 btn_4 = types.KeyboardButton('Мои объявления')
 main_menu.add(btn_1).add(btn_2).add(btn_3).add(btn_4)
 
+
+@dp.message_handler(commands = ['mailing'])
+async def mailing(message):
+	await message.answer(message.get_args())
+
+
+
+
+async def check_and_add_user(user_id, user_name):
+	user_in_database = db_manager.get_user(user_id)
+
+	if user_in_database == None:
+		db_manager.add_user(user_id, user_name)
+
+
+@dp.message_handler(commands = ['registeredusers'])
+async def users(message):
+	users = db_manager.get_all_users()
+	message_to_answer = f"Зарегестрированных пользователей {len(users)}:\n"
+
+	for user in users:
+		counter = 1
+		message_to_answer += f"{counter} - @{user[1]}\n"
+
+	await message.answer(message_to_answer)
+
 @dp.message_handler(lambda mes: mes.text == 'Главное меню', state='*')
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message, state: FSMContext):
@@ -62,6 +88,8 @@ async def send_welcome(message: types.Message, state: FSMContext):
 	This handler will be called when user sends `/start` or `/help` command
 	"""
 	await state.finish()
+
+	await check_and_add_user(message.from_user.id, message.from_user.username)
 
 	message_to_answer = 'Переход на главную страницу' if message.text == 'Главное меню' else "Здравствуйте!\nЭто бот созданный что бы находить сожителей для совместного проживания и дележки тяжелой ноши аренды :D"
 
@@ -128,14 +156,6 @@ async def write_form_get_title(message: types.Message, state: FSMContext):
 
 	await state.update_data(form_title=message.text.title())
 
-	await message.answer(text='Напишите адрес')
-	await WriteFormState.address.set()
-
-@dp.message_handler(state=WriteFormState.address, content_types=types.ContentTypes.TEXT)
-async def write_form_get_address(message: types.Message, state: FSMContext):
-
-	await state.update_data(form_address=message.text.title())
-
 	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
 
 	for city in cities:
@@ -143,8 +163,9 @@ async def write_form_get_address(message: types.Message, state: FSMContext):
 		markup.add(btn)
 	markup.add(main_menu_btn)
 
-	await message.answer(text='Напишите город',
+	await message.answer(text='Выберите город',
 						reply_markup = markup)
+
 	await WriteFormState.city.set()
 
 @dp.message_handler(state=WriteFormState.city, content_types=types.ContentTypes.TEXT)
@@ -154,21 +175,35 @@ async def write_form_get_city(message: types.Message, state: FSMContext):
 
 		await state.update_data(form_city=message.text.title())
 
-		await message.answer(text='Напишите количество жильцов',
+		await message.answer(text='Напишите адрес',
 							reply_markup = main_menu_markup)
-		await WriteFormState.people_count.set()
+		await WriteFormState.address.set()
 
 	else:
 		await message.answer('Напишите один из вариантов ниже')
 
+@dp.message_handler(state=WriteFormState.address, content_types=types.ContentTypes.TEXT)
+async def write_form_get_address(message: types.Message, state: FSMContext):
+
+	await state.update_data(form_address=message.text.title())
+	await WriteFormState.people_count.set()
+	await message.answer(text='Напишите количество жильцов',
+						reply_markup = main_menu_markup)
 
 @dp.message_handler(state=WriteFormState.people_count, content_types=types.ContentTypes.TEXT)
 async def write_form_get_people_count(message: types.Message, state: FSMContext):
 
-	await state.update_data(form_people_count=message.text.title())
+	try:
+		count = int(message.text.replace(' ', ''))
 
-	await message.answer(text='Напишите описание объявления')
-	await WriteFormState.description.set()
+		await state.update_data(form_people_count=message.text.title())
+
+		await message.answer(text='Напишите описание объявления')
+		await WriteFormState.description.set()
+		
+	except ValueError as e:
+		await message.answer('Введите число')
+
 
 @dp.message_handler(state=WriteFormState.description, content_types=types.ContentTypes.TEXT)
 async def write_form_get_description(message: types.Message, state: FSMContext):
@@ -438,20 +473,28 @@ async def filter_get_people_count(message: types.Message, state: FSMContext):
 	if message.text == 'Пропустить':
 		pass
 	else:
-		await state.update_data(people_count=message.text.title())
 
-	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+		try:
+			count = int(message.text.replace(' ', ''))
 
-	for price in rent_prices:
-		btn = types.KeyboardButton(price)
-		markup.add(btn)
+			await state.update_data(people_count=message.text.title())
+			
+			markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
 
-	btn_1 = types.KeyboardButton('Пропустить')
-	markup.add(btn_1).add(main_menu_btn)
+			for price in rent_prices:
+				btn = types.KeyboardButton(price)
+				markup.add(btn)
 
-	await message.answer(text='Выберите цену',
-						reply_markup = markup)
-	await FilterState.price.set()
+			btn_1 = types.KeyboardButton('Пропустить')
+			markup.add(btn_1).add(main_menu_btn)
+
+			await message.answer(text='Выберите цену',
+								reply_markup = markup)
+			await FilterState.price.set()
+			
+		except ValueError as e:
+			await message.answer('Введите число')
+			return	
 
 
 @dp.message_handler(state=FilterState.price, content_types=types.ContentTypes.TEXT)
@@ -581,6 +624,7 @@ async def make_ad_message(ad_data):
 		Пол: {ad_data[10]}
 	'''
 	return message_to_answer
+
 
 
 if __name__ == '__main__':
