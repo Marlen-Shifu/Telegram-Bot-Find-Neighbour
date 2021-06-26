@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 db_manager = DBConnector()
 
 # Initialize bot and dispatcher
-bot = Bot(token=OLD_TOKEN)
+bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage = MemoryStorage())
 
 
@@ -322,7 +322,7 @@ async def sort_ads(ads_data, sort_data):
 
 	sort_data_index = {
 		'category': 1,
-		'city': 6,
+		'city': 5,
 		'people_count': 7,
 		'price': 9,
 		'gender': 10
