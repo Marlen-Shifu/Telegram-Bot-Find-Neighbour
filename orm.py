@@ -37,8 +37,8 @@ class DBConnector:
 
 		self.conn.commit()
 
-	def add_ad(self, category, ownername, phone, title, address, city, people_count, description, price, gender, user_id):
-		self.cur.execute("""INSERT INTO ads(category, ownername, phone, title, address, city, people_count, description, price, gender, userid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (category, ownername, phone, title, address, city, people_count, description, price, gender, user_id))
+	def add_ad(self, category, ownername, phone, title, city, address, people_count, description, price, gender, user_id):
+		self.cur.execute("""INSERT INTO ads(category, ownername, phone, title, address, city, people_count, description, price, gender, userid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (category, ownername, phone, title, city, address, people_count, description, price, gender, user_id))
 		self.conn.commit()
 		return self.cur.lastrowid
 
@@ -63,7 +63,7 @@ class DBConnector:
 
 
 	def delete_ad(self, ad_id):
-		self.cur.execute("""DELETE FROM users WHERE id=(?)""", (ad_id, ))
+		self.cur.execute("""DELETE FROM ads WHERE id=(?)""", (ad_id, ))
 		self.conn.commit()
 		res = self.get_ad(ad_id)
 		return res

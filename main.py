@@ -2,7 +2,7 @@ import logging
 
 from aiogram import Bot, Dispatcher, executor, types
 
-from config import TOKEN, cities, rent_prices
+from config import TOKEN,  OLD_TOKEN, cities, rent_prices
 
 from orm import DBConnector
 
@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 db_manager = DBConnector()
 
 # Initialize bot and dispatcher
-bot = Bot(token=TOKEN)
+bot = Bot(token=OLD_TOKEN)
 dp = Dispatcher(bot, storage = MemoryStorage())
 
 
@@ -479,23 +479,22 @@ async def filter_get_people_count(message: types.Message, state: FSMContext):
 
 			await state.update_data(people_count=message.text.title())
 			
-			markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-
-			for price in rent_prices:
-				btn = types.KeyboardButton(price)
-				markup.add(btn)
-
-			btn_1 = types.KeyboardButton('Пропустить')
-			markup.add(btn_1).add(main_menu_btn)
-
-			await message.answer(text='Выберите цену',
-								reply_markup = markup)
-			await FilterState.price.set()
-			
 		except ValueError as e:
 			await message.answer('Введите число')
 			return	
+	
+	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
 
+	for price in rent_prices:
+		btn = types.KeyboardButton(price)
+		markup.add(btn)
+
+	btn_1 = types.KeyboardButton('Пропустить')
+	markup.add(btn_1).add(main_menu_btn)
+
+	await message.answer(text='Выберите цену',
+								reply_markup = markup)
+	await FilterState.price.set()
 
 @dp.message_handler(state=FilterState.price, content_types=types.ContentTypes.TEXT)
 async def filter_get_price(message: types.Message, state: FSMContext):
@@ -617,8 +616,8 @@ async def make_ad_message(ad_data):
 		Телефон: {ad_data[3]}
 		Название: {ad_data[4]}
 		Описание: {ad_data[8]}
-		Адрес: {ad_data[5]}
-		Город: {ad_data[6]}
+		Адрес: {ad_data[6]}
+		Город: {ad_data[5]}
 		Количество сожильцов: {ad_data[7]}
 		Цена(тг/мес): {ad_data[9]}
 		Пол: {ad_data[10]}
