@@ -58,7 +58,12 @@ main_menu.add(btn_1).add(btn_2).add(btn_3).add(btn_4)
 
 @dp.message_handler(commands = ['mailing'])
 async def mailing(message):
-	await message.answer(message.get_args())
+
+	users = db_manager.get_all_users()
+
+	for user in users:
+
+		await bot.send_message(user[0], message.get_args())
 
 
 
@@ -78,6 +83,7 @@ async def users(message):
 	for user in users:
 		counter = 1
 		message_to_answer += f"{counter} - @{user[1]}\n"
+		counter += 1
 
 	await message.answer(message_to_answer)
 
