@@ -2,13 +2,15 @@ import logging
 
 from aiogram import Bot, Dispatcher, executor, types
 
-from config import TOKEN,  OLD_TOKEN, cities, rent_prices
+from config import TOKEN, cities, rent_prices
 
 from orm import DBConnector
 
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+
+import phonenumbers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -49,10 +51,10 @@ main_menu_btn = types.KeyboardButton('Главное меню')
 main_menu_markup = types.ReplyKeyboardMarkup(resize_keyboard = True).add(main_menu_btn)
 
 main_menu = types.ReplyKeyboardMarkup(resize_keyboard = True)
-btn_1 = types.KeyboardButton('Все объявления')
-btn_2 = types.KeyboardButton('Дать объявление')
-btn_3 = types.KeyboardButton('Фильтр')
-btn_4 = types.KeyboardButton('Мои объявления')
+btn_1 = types.KeyboardButton('Все объявления 📋')
+btn_2 = types.KeyboardButton('Дать объявление 📝')
+btn_3 = types.KeyboardButton('Фильтр 🔍')
+btn_4 = types.KeyboardButton('Мои объявления 🗃')
 main_menu.add(btn_1).add(btn_2).add(btn_3).add(btn_4)
 
 
@@ -97,7 +99,7 @@ async def send_welcome(message: types.Message, state: FSMContext):
 
 	await check_and_add_user(message.from_user.id, message.from_user.username)
 
-	message_to_answer = 'Переход на главную страницу' if message.text == 'Главное меню' else "Здравствуйте!\nЭто бот созданный что бы находить сожителей для совместного проживания и дележки тяжелой ноши аренды :D"
+	message_to_answer = 'Переход на главную страницу' if message.text == 'Главное меню' else "Здравствуйте!🖐\nЭто бот созданный что бы находить сожителей для совместного проживания👥 и дележки тяжелой ноши аренды 💵 :D"
 
 	await message.reply(
 						message_to_answer,
@@ -105,13 +107,13 @@ async def send_welcome(message: types.Message, state: FSMContext):
 
 
 
-@dp.message_handler(lambda mes: mes.text == 'Дать объявление')
+@dp.message_handler(lambda mes: mes.text == 'Дать объявление 📝')
 async def write_form(message: types.Message):
 
 	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
 
-	btn1 = types.KeyboardButton('У меня есть квартира')
-	btn2 = types.KeyboardButton('Я ищу квартиру')
+	btn1 = types.KeyboardButton('У меня есть квартира 🏢')
+	btn2 = types.KeyboardButton('Я ищу квартиру 👤')
 
 	markup.add(btn1, btn2).add(main_menu_btn)
 
@@ -126,13 +128,13 @@ async def write_form(message: types.Message):
 @dp.message_handler(state=WriteFormState.category, content_types=types.ContentTypes.TEXT)
 async def write_form_get_category(message: types.Message, state: FSMContext):
 
-	if message.text == 'У меня есть квартира' or message.text == 'Я ищу квартиру':
+	if message.text == 'У меня есть квартира 🏢' or message.text == 'Я ищу квартиру 👤':
 
 		await state.update_data(category=message.text.title())
 
 		await message.answer(
-						'Введите полное имя', 
-						reply_markup = main_menu_markup)
+			'Введите полное имя (Например: Октябриев Марлен)',
+			reply_markup = main_menu_markup)
 
 		await WriteFormState.full_name.set()
 
@@ -143,19 +145,35 @@ async def write_form_get_category(message: types.Message, state: FSMContext):
 async def write_form_get_name(message: types.Message, state: FSMContext):
 
 	await state.update_data(user_full_name=message.text.title())
-	await message.answer(text='Введите номер телефона', 
+	await message.answer(text='Введите номер телефона (Например: 8-700-686-20-81)',
 					reply_markup = main_menu_markup)
 	await WriteFormState.phone_number.set()
 
 @dp.message_handler(state=WriteFormState.phone_number, content_types=types.ContentTypes.TEXT)
 async def write_form_get_phone(message: types.Message, state: FSMContext):
 
-	await state.update_data(user_phone=message.text.title())
+	string_tel = message.text
 
-	await message.answer(
-					'Напишите название объявления')
+	try:
+		num = phonenumbers.parse(string_tel, "KZ")
 
-	await WriteFormState.title.set()
+		if (phonenumbers.is_valid_number(num)):
+
+			await state.update_data(user_phone=message.text.title())
+
+			await message.answer(
+				'Напишите название объявления (Например: Квартира В центре Алматы)')
+
+			await WriteFormState.title.set()
+
+		else:
+			await message.answer(
+				'Неверный номер или формат')
+
+	except:
+		await message.answer(
+					'Неверный номер или формат')
+
 
 @dp.message_handler(state=WriteFormState.title, content_types=types.ContentTypes.TEXT)
 async def write_form_get_title(message: types.Message, state: FSMContext):
@@ -174,6 +192,7 @@ async def write_form_get_title(message: types.Message, state: FSMContext):
 
 	await WriteFormState.city.set()
 
+
 @dp.message_handler(state=WriteFormState.city, content_types=types.ContentTypes.TEXT)
 async def write_form_get_city(message: types.Message, state: FSMContext):
 
@@ -181,7 +200,7 @@ async def write_form_get_city(message: types.Message, state: FSMContext):
 
 		await state.update_data(form_city=message.text.title())
 
-		await message.answer(text='Напишите адрес',
+		await message.answer(text='Напишите адрес (Например: улица Абая 15, 15мкр)',
 							reply_markup = main_menu_markup)
 		await WriteFormState.address.set()
 
@@ -204,7 +223,7 @@ async def write_form_get_people_count(message: types.Message, state: FSMContext)
 
 		await state.update_data(form_people_count=message.text.title())
 
-		await message.answer(text='Напишите описание объявления')
+		await message.answer(text='Напишите описание объявления (Например: Только семейные, есть ли аллергия, сколько комнат, на каком этаже, можно ли с дом животными?)')
 		await WriteFormState.description.set()
 		
 	except ValueError as e:
@@ -312,12 +331,12 @@ async def make_ads_markup(ads_data, page_number, mod = 'page', ad_mod = 'ad',fil
 	return markup
 
 
-@dp.message_handler(lambda mes: mes.text == 'Все объявления')
+@dp.message_handler(lambda mes: mes.text == 'Все объявления 📋')
 async def show_all_ads(message: types.Message):
 
 	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-	btn_1 = types.KeyboardButton('Ищу квартиру')
-	btn_2 = types.KeyboardButton('Ищу людей')
+	btn_1 = types.KeyboardButton('Ищу квартиру 🏢')
+	btn_2 = types.KeyboardButton('Ищу людей 👤')
 	markup.add(btn_1, btn_2).add(main_menu_btn)
 
 	await message.answer('Что вы ищете?',
@@ -335,8 +354,8 @@ async def sort_ads(ads_data, sort_data):
 	}
 
 	category_dict = {
-		'Ищу Квартиру': 'У Меня Есть Квартира',
-		'Ищу Людей': 'Я Ищу Квартиру'
+		'Ищу Квартиру 🏢': 'У Меня Есть Квартира 🏢',
+		'Ищу Людей 👤': 'Я Ищу Квартиру 👤'
 	}
 
 	ads_data_to_give = ads_data
@@ -366,9 +385,10 @@ async def sort_ads(ads_data, sort_data):
 	return ads_data_to_give
 
 
-@dp.message_handler(lambda mes: mes.text == 'Ищу квартиру')
-@dp.message_handler(lambda mes: mes.text == 'Ищу людей')
+@dp.message_handler(lambda mes: mes.text == 'Ищу квартиру 🏢')
+@dp.message_handler(lambda mes: mes.text == 'Ищу людей 👤')
 async def show_ads(message: types.Message):
+
 
 	ads_data = db_manager.get_all_ads()
 
@@ -410,13 +430,13 @@ async def show_ads_page(call: types.CallbackQuery):
 
 
 
-@dp.message_handler(lambda mes: mes.text == 'Фильтр')
+@dp.message_handler(lambda mes: mes.text == 'Фильтр 🔍')
 async def filter_start(message):
 	await FilterState.category.set()
 
 	markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
-	btn_1 = types.KeyboardButton('Ищу квартиру')
-	btn_2 = types.KeyboardButton('Ищу людей')
+	btn_1 = types.KeyboardButton('Ищу Квартиру 🏢')
+	btn_2 = types.KeyboardButton('Ищу Людей 👤')
 	btn_3 = types.KeyboardButton('Пропустить')
 	markup.add(btn_1, btn_2).add(btn_3).add(main_menu_btn)
 
@@ -427,7 +447,7 @@ async def filter_start(message):
 @dp.message_handler(state=FilterState.category, content_types=types.ContentTypes.TEXT)
 async def filter_get_category(message: types.Message, state: FSMContext):
 
-	if message.text == 'Ищу квартиру' or message.text == 'Ищу людей' or message.text == 'Пропустить':
+	if message.text == 'Ищу Квартиру 🏢' or message.text == 'Ищу Людей 👤' or message.text == 'Пропустить':
 
 		if message.text == 'Пропустить':
 			pass
@@ -573,7 +593,7 @@ async def filter(call):
 
 
 
-@dp.message_handler(lambda mes: mes.text == 'Мои объявления')
+@dp.message_handler(lambda mes: mes.text == 'Мои объявления 🗃')
 async def my_ads(message):
 	user_id = message.from_user.id
 
@@ -617,16 +637,16 @@ async def delete_my_ad(call):
 
 async def make_ad_message(ad_data):
 	message_to_answer = f'''
-		Категория: {ad_data[1]}
-		Владелец: {ad_data[2]}
-		Телефон: {ad_data[3]}
-		Название: {ad_data[4]}
-		Описание: {ad_data[8]}
-		Адрес: {ad_data[6]}
-		Город: {ad_data[5]}
-		Количество сожильцов: {ad_data[7]}
-		Цена(тг/мес): {ad_data[9]}
-		Пол: {ad_data[10]}
+📋Категория: {ad_data[1]}
+👤Владелец: {ad_data[2]}
+☎Телефон: {ad_data[3]}
+🖊Название: {ad_data[4]}
+🖊Описание: {ad_data[8]}
+🖊Адрес: {ad_data[6]}
+🏛Город: {ad_data[5]}
+👥Количество сожильцов: {ad_data[7]}
+💵Цена(тг/мес): {ad_data[9]}
+🚻Пол: {ad_data[10]}
 	'''
 	return message_to_answer
 
